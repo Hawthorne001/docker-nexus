@@ -3,7 +3,7 @@
  * Includes the third-party code listed at http://links.sonatype.com/products/nexus/attributions.
  * "Sonatype" is a trademark of Sonatype, Inc.
  */
-@Library('private-pipeline-library') _
+@Library(['private-pipeline-library', 'jenkins-shared']) _
 import com.sonatype.jenkins.pipeline.GitHub
 import com.sonatype.jenkins.pipeline.OsTools
 
@@ -43,12 +43,9 @@ node('ubuntu-zion') {
 
       longVersion = readLongVersion()
 
-      def apiToken
-      withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId,
-                        usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
-        apiToken = env.GITHUB_API_PASSWORD
+      withGitHubAppToken {
+        gitHub = new GitHub(this, "${organization}/${gitHubRepository}", "${GITHUB_TOKEN}")
       }
-      gitHub = new GitHub(this, "${organization}/${gitHubRepository}", apiToken)
     }
     if (params.nexus_repository_manager_version) {
       stage('Update Repository Manager Version') {
@@ -73,14 +70,13 @@ node('ubuntu-zion') {
     }
     if (params.nexus_repository_manager_version) {
       stage('Commit Repository Manager Version Update') {
-        withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'integrations-github-api',
-                        usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
-          def commitMessage = "Update Repository Manager to ${params.nexus_repository_manager_version}."
-          OsTools.runSafe(this, """
-            git add .
-            git commit -m '${commitMessage}'
-            git push https://${env.GITHUB_API_USERNAME}:${env.GITHUB_API_PASSWORD}@github.com/${organization}/${gitHubRepository}.git ${branch}
-          """)
+        def commitMessage = "Update Repository Manager to ${params.nexus_repository_manager_version}."
+        sonatypeZionGitConfig()
+        sshagent(credentials: [sonatypeZionCredentialsId()]) {
+          sh """git add .
+                git commit -m '${commitMessage}'
+                git push origin ${branch}
+                """
         }
       }
     }
@@ -113,14 +109,11 @@ node('ubuntu-zion') {
     }
     stage('Push tags') {
       def shortVersion = getShortVersion(longVersion)
-      withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId,
-                        usernameVariable: 'GITHUB_API_USERNAME', passwordVariable: 'GITHUB_API_PASSWORD']]) {
-        OsTools.runSafe(this, "git tag ${shortVersion}")
-        OsTools.runSafe(this, """
-          git push \
-          https://${env.GITHUB_API_USERNAME}:${env.GITHUB_API_PASSWORD}@github.com/${organization}/${gitHubRepository}.git \
-            ${shortVersion}
-        """)
+      sonatypeZionGitConfig()
+      sshagent(credentials: [sonatypeZionCredentialsId()]) {
+        sh """git tag ${shortVersion}
+              git push origin ${shortVersion}
+              """
       }
       OsTools.runSafe(this, "git tag -d ${shortVersion}")
     }

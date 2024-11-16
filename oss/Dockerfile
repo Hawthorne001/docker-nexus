@@ -19,15 +19,15 @@ LABEL vendor=Sonatype \
   com.sonatype.license="Apache License, Version 2.0" \
   com.sonatype.name="Nexus Repository Manager OSS base image"
 
-ARG NEXUS_VERSION=2.15.1-02
+ARG NEXUS_VERSION=2.15.2-03
 ARG NEXUS_DOWNLOAD_URL=https://download.sonatype.com/nexus/oss/nexus-${NEXUS_VERSION}-bundle.tar.gz
 
 ENV SONATYPE_WORK=/sonatype-work
 ENV NEXUS_HOME=/opt/sonatype/nexus
 
 RUN yum install -v -y --disableplugin=subscription-manager hostname java-1.8.0-openjdk-headless \
-  && yum-config-manager --add-repo http://mirror.centos.org/centos/7/os/x86_64/ \
-  && rpm --import http://mirror.centos.org/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7 \
+  && yum-config-manager --add-repo https://vault.centos.org/centos/7/os/x86_64/ \
+  && rpm --import https://vault.centos.org/centos/7/os/x86_64/RPM-GPG-KEY-CentOS-7 \
   && yum install -v -y createrepo \
   && yum --disableplugin=subscription-manager clean all
 
